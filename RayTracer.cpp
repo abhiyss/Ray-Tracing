@@ -702,6 +702,7 @@ int main(int argc, char** argv)
             }
         }
         object[iterator].sharpFlag = model[iterator].sharpFlag;
+
         
         sharedVertexObject sharedVertexTemp;
         sharedVertexTemp.set_row_size(object[iterator].vertex.size());
