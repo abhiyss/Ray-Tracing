@@ -9,7 +9,7 @@ ifeq ($(UNAME_S),Darwin)
 CC = clang++
 CPP_FLAGS =  -Xpreprocessor -fopenmp -lomp -Wall -O4 -w -std=c++11 -stdlib=libc++ -I/opt/X11/include -L/opt/X11/lib -lm -lpthread -lX11
 endif
-FILES = RayTracer.cpp materialObject.cpp displayObject.cpp lightObject.cpp cameraObject.cpp
+FILES = RayTracer.cpp materialObject.cpp displayObject.cpp lightObject.cpp cameraObject.cpp normalObject.cpp
 EXE = raytracer
 
 build: $(FILES)

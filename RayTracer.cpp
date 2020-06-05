@@ -4,6 +4,8 @@
 /*                           CS 410                                          */
 /*---------------------------------------------------------------------------*/
 
+#pragma once
+
 #include <iostream>
 #include <fstream>
 #include "Eigen/Dense"
@@ -24,6 +26,7 @@
 #include "lightObject.hpp"
 #include "displayObject.hpp"
 #include "cameraObject.hpp"
+#include "normalObject.hpp"
 
 using namespace std;
 using namespace Eigen;
@@ -147,35 +150,6 @@ class modelObject
 
             return rotation3DTranspose * rotationTheta * rotation3D;
         }
-};
-
-class normalObject
-{
-    public:
-        RowVector3d *surfaceNormal; //Storing a set of normals, where normal at index i is the normal for the face i
-        int number_of_normals;
-        void set_size_of_normals(int faceCounter)
-        {
-            surfaceNormal=(RowVector3d*)malloc(faceCounter*sizeof(RowVector3d));
-            number_of_normals = faceCounter;
-        }
-
-        void generate_normals(displayObject object)
-        {
-            for(int i = 0; i < number_of_normals; i++)
-            {
-                RowVector3d A(object.vertex[object.faces[i][0]][0],object.vertex[object.faces[i][0]][1],object.vertex[object.faces[i][0]][2]);
-                RowVector3d B(object.vertex[object.faces[i][1]][0],object.vertex[object.faces[i][1]][1],object.vertex[object.faces[i][1]][2]);
-                RowVector3d C(object.vertex[object.faces[i][2]][0],object.vertex[object.faces[i][2]][1],object.vertex[object.faces[i][2]][2]);
-                surfaceNormal[i] = (A-B).cross(A-C); //Assuming the order in which the vertices for a face are given is cyclic with the surface normal pointing outwards
-                surfaceNormal[i].normalize();
-            }
-        }
-        RowVector3d get_normal(int index)
-        {
-            return surfaceNormal[index];
-        }
-        
 };
 
 class sphereObject
@@ -613,7 +587,6 @@ int main(int argc, char** argv)
     vector < normalObject > normals;
     vector < sharedVertexObject > sharedVertex;
     cameraObject camera;
-
     ifstream driverfile (driver_file_name);
     RowVector3d ambient;
     while(!driverfile.eof())
@@ -938,7 +911,7 @@ int main(int argc, char** argv)
         }
 
     }
-
+    
     system("clear");
     for(int newLine = 0; newLine < 27; newLine++)
         cout<<"\n";

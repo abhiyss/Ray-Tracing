@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Eigen/Dense" 
 #include <vector>
 
@@ -15,7 +17,7 @@ class cameraObject
         //wCamera, vCamera, uCamera are the vectors that act as the basis axis
         //left,bottom,righ, and top provide the bounds of the image plane
         //width and height gives us the number of pixels along the width and th height of the image
-        
+
     public:
         void set_eye_values(double value1, double value2, double value3);
 
