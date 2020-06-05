@@ -30,6 +30,8 @@
 #include "normalObject.hpp"
 #include "sharedVertexObject.hpp"
 #include "sphereObject.hpp"
+#include "modelObject.hpp"
+#include "rayObject.hpp"
 
 using namespace std;
 using namespace Eigen;
@@ -46,355 +48,6 @@ using namespace cimg_library;
 #endif
 
 static mutex barrier;
-
-class rayObject;
-
-class modelObject
-{
-    public:
-        double wx, wy, wz, theta, scale, tx, ty, tz; 
-        bool sharpFlag;
-        string objectFileName;
-        //WX, WY, WZ provide the axis along which rotation is to be done.
-        //Theta tells the angle to be which the object is to be rotated
-        //Scale provides the uniform-scaling factor
-        //TX, TY, TZ provide the values across respective basis axes by which translation is to be performed
-        //sharpFlag tells whether a particular object should be smoothened or to be left with sharp edges
-        //objectFileName provides the name of the file in which the vertices and the faces of the object are stored 
-        void set_values(double value1, double value2, double value3, double value4, double value5, double value6, double value7, double value8, string value9, string value10)
-        {
-            wx = value1;
-            wy = value2;
-            wz = value3;
-            theta = value4;
-            scale = value5;
-            tx = value6;
-            ty = value7;
-            tz = value8;
-            if(!value9.compare("sharp"))
-                sharpFlag = true;
-            else
-                sharpFlag = false;
-            objectFileName = value10;
-        }
-
-        Matrix4d translation_Matrix_Generator() //Generates the translation matrix
-        {
-            Matrix4d translationMatrixTemp;
-            translationMatrixTemp << 1, 0, 0, tx,
-                                    0, 1, 0, ty,
-                                    0, 0, 1, tz,
-                                    0, 0, 0, 1;
-            return translationMatrixTemp;
-        }
-
-        Matrix4d scaling_Matrix_Generator() //Generates the scaling matrix
-        {
-            Matrix4d scalingMatrixTemp;
-            scalingMatrixTemp << scale, 0, 0, 0,
-                                0, scale, 0, 0,
-                                0, 0, scale, 0,
-                                0, 0, 0, 1;
-            return scalingMatrixTemp;
-        }
-
-        Matrix4d rotation_Matrix_Generator() //Generates the rotation matrix
-        {
-            RowVector3d w(wx, wy, wz); //Vector for the axis of rotation
-            w.normalize();
-
-            int minimumInW = INT_MAX, indexMinimumInW = -1; //Find the the minimum among X, Y, Z to get the vector orgonal to W
-            for (int i = 0; i < 3; i++)
-            {
-                if(minimumInW >= abs(w(i)))
-                {
-                    minimumInW = w(i);
-                    indexMinimumInW = i;
-                }
-            }
-
-            RowVector3d wOrthogonalMatrix;
-            for(int i = 0; i < 3; i++)
-            {
-                if (i != indexMinimumInW)
-                    wOrthogonalMatrix(i) = w(i);
-                else
-                    wOrthogonalMatrix(i) = 1.0;
-                    
-            }
-
-            RowVector3d u;
-            u = w.cross(wOrthogonalMatrix); //u is perpendixular to w
-            u.normalize();
-
-            RowVector3d v;
-            v = w.cross(u); //v is perpendicular to both u and w
-
-            Matrix3d rotation2D;
-            rotation2D << u, v, w;
-
-            Matrix4d rotation3D;
-
-            rotation3D << rotation2D(0), rotation2D(3), rotation2D(6), 0,
-                        rotation2D(1), rotation2D(4), rotation2D(7), 0,
-                        rotation2D(2), rotation2D(5), rotation2D(8), 0,
-                        0, 0, 0, 1;
-
-            Matrix4d rotation3DTranspose;
-
-            rotation3DTranspose = rotation3D.transpose();
-            
-            double angle = theta*PI/180;
-            Matrix4d rotationTheta;
-            rotationTheta << cos(angle), -sin(angle), 0, 0,
-                            sin(angle), cos(angle), 0, 0,
-                            0, 0, 1, 0,
-                            0, 0, 0, 1;
-
-            return rotation3DTranspose * rotationTheta * rotation3D;
-        }
-};
-
-class rayObject
-{
-    public:
-        RowVector3d L, D, intersectionPoint;
-        double best_tVal;
-        sphereObject best_sphere;
-        materialObject bestMaterial;
-        void set_values(RowVector3d value1, RowVector3d value2, double value3)
-        {
-            L = value1;
-            D = value2;
-            best_tVal = value3;
-        }
-        bool sphere_ray(sphereObject sphere)
-        {
-            RowVector3d T = sphere.get_center() - L;
-            double disc = pow(sphere.get_radius(),2) - (T.dot(T)-pow(T.dot(D),2));
-            if (disc > 0)
-            {
-                double tVal = T.dot(D) - sqrt(disc);
-                if (tVal > 0.00001 && tVal < best_tVal)
-                {
-                    best_tVal = tVal;
-                    best_sphere = sphere;
-                    intersectionPoint = L + best_tVal*D;
-                    return true;
-                }
-            }
-            return false;
-        }
-        bool intersectionDetector(RowVector3d A, RowVector3d B, RowVector3d C, RowVector3d D, RowVector3d pixpt, double *betaO, double *gammaO)
-        {
-            Matrix3d M_for_intersection;
-            M_for_intersection << A-B,A-C,D;
-            
-            Matrix3d M_for_intersection_transpose;
-            M_for_intersection_transpose << M_for_intersection.transpose();
-
-            double determinant = M_for_intersection_transpose.determinant();
-            if(!(abs(determinant) <= 0.000001))
-            {        
-                RowVector3d Y = A-pixpt;
-                
-                Matrix3d MatrixCopy1;
-                MatrixCopy1 << M_for_intersection_transpose;
-                for(int l = 0; l < 3; l++)
-                    MatrixCopy1(l,0) = Y(l);
-                    
-                double determinant1 = MatrixCopy1.determinant(), beta = determinant1/determinant;
-                if (beta >= 0)
-                {
-                    Matrix3d MatrixCopy2;
-                    MatrixCopy2 << M_for_intersection_transpose;
-                    for(int l = 0; l < 3; l++)
-                        MatrixCopy2(l,1) = Y(l);
-                    
-                    double determinant2 = MatrixCopy2.determinant(), gamma = determinant2/determinant;
-                    if (gamma >= 0 && (beta + gamma) <= 1)
-                    {
-                        Matrix3d MatrixCopy3;
-                        MatrixCopy3 << M_for_intersection_transpose;
-                        for(int l = 0; l < 3; l++)
-                            MatrixCopy3(l,2) = Y(l);
-                        double determinant3 = MatrixCopy3.determinant(),tVal = determinant3/determinant;
-                        if (best_tVal > tVal && tVal > 0.0001)
-                        {
-                            *betaO = beta;
-                            *gammaO = gamma;
-                            best_tVal = tVal;
-                            intersectionPoint = L + best_tVal * D;
-                            return true;
-                        }
-                    } 
-                }
-            }
-            return false;
-        }
-        bool ray_trace(double pixels[3], Vector3d refatt, int level, vector <displayObject> object, vector < vector < materialObject > > material, vector < normalObject > normals, vector < sphereObject > sphere, vector < materialObject > sphereMaterial, vector < lightObject > light, RowVector3d ambient, vector < sharedVertexObject > sharedVertex)
-        {
-            int minFace = -1;
-            double beta, gamma;
-            RowVector3d surfaceNormal;
-            RowVector3d cameraDirection;
-            double bestSphere = -1;
-            
-            for (int iterator = 0; iterator < object.size(); iterator++)
-            {        
-                for(int k = 0; k < object[iterator].faces.size(); k++)
-                {
-                    RowVector3d A(object[iterator].vertex[object[iterator].faces[k][0]][0],object[iterator].vertex[object[iterator].faces[k][0]][1],object[iterator].vertex[object[iterator].faces[k][0]][2]);
-                    RowVector3d B(object[iterator].vertex[object[iterator].faces[k][1]][0],object[iterator].vertex[object[iterator].faces[k][1]][1],object[iterator].vertex[object[iterator].faces[k][1]][2]);
-                    RowVector3d C(object[iterator].vertex[object[iterator].faces[k][2]][0],object[iterator].vertex[object[iterator].faces[k][2]][1],object[iterator].vertex[object[iterator].faces[k][2]][2]);
-                    
-                    if(this->D.dot(normals[iterator].get_normal(k)) < 0)
-                    {
-                        if(intersectionDetector(A,B,C,this->D,this->L, &beta, &gamma))
-                        {
-                            minFace = k;
-                            this->bestMaterial = material[iterator][object[iterator].faceMaterial[minFace]];
-                            if(object[iterator].sharpFlag)
-                                surfaceNormal = normals[iterator].get_normal(minFace);
-                            else
-                                surfaceNormal = sharedVertex[iterator].normal_generator(beta, gamma, object[iterator].faces[minFace], minFace, normals[iterator]);
-                            
-                            RowVector2d textureIntersectionPoint;
-                            unsigned char *red, *green, *blue;
-                            RowVector3d textureColor;
-                            if(material[iterator][object[iterator].faceMaterial[minFace]].get_textureMapping() == true)
-                            {
-                                int imageWidth = material[iterator][object[iterator].faceMaterial[minFace]].get_textureImage().width();
-                                int imageHeight = material[iterator][object[iterator].faceMaterial[minFace]].get_textureImage().height();
-                                textureIntersectionPoint(0) = object[iterator].textureVertex[object[iterator].textureFaces[minFace][0]][0];
-                                textureIntersectionPoint(1) = object[iterator].textureVertex[object[iterator].textureFaces[minFace][0]][1];
-                                textureIntersectionPoint(0) += (beta * (object[iterator].textureVertex[object[iterator].textureFaces[minFace][1]][0] - textureIntersectionPoint(0)) + gamma * (object[iterator].textureVertex[object[iterator].textureFaces[minFace][2]][0] - textureIntersectionPoint(0)));
-                                textureIntersectionPoint(1) += (beta * (object[iterator].textureVertex[object[iterator].textureFaces[minFace][1]][1] - textureIntersectionPoint(1)) + gamma * (object[iterator].textureVertex[object[iterator].textureFaces[minFace][2]][1] - textureIntersectionPoint(1)));
-                                textureIntersectionPoint(0) *= imageWidth;
-                                textureIntersectionPoint(1) *= imageHeight;
-                                textureIntersectionPoint(1) = imageHeight - textureIntersectionPoint(1);
-                                red = material[iterator][object[iterator].faceMaterial[minFace]].get_textureImage().data(textureIntersectionPoint(0),textureIntersectionPoint(1),0,0); 
-                                green = material[iterator][object[iterator].faceMaterial[minFace]].get_textureImage().data(textureIntersectionPoint(0),textureIntersectionPoint(1),0,1); 
-                                blue = material[iterator][object[iterator].faceMaterial[minFace]].get_textureImage().data(textureIntersectionPoint(0),textureIntersectionPoint(1),0,2); 
-                                textureColor(0) = (double)*red/255;
-                                textureColor(1) = (double)*green/255;
-                                textureColor(2) = (double)*blue/255;
-                        
-                                this->bestMaterial.set_values_Kd_individual(textureColor(0),0,0);
-                                this->bestMaterial.set_values_Kd_individual(textureColor(1),1,1);
-                                this->bestMaterial.set_values_Kd_individual(textureColor(2),2,2);
-                            }
-                        }
-                    }
-                }
-            }
-            
-            for (int iterator = 0; iterator < sphere.size(); iterator++)
-            {
-                if(this->sphere_ray(sphere[iterator]))
-                {
-                    this->bestMaterial = sphereMaterial[iterator];
-                    bestSphere = iterator;
-                    surfaceNormal = (this->intersectionPoint - this->best_sphere.get_center());
-                    surfaceNormal.normalize();
-                }
-            }
-
-            if(this->best_tVal != DBL_MAX)
-            {
-                cameraDirection = this->L-this->intersectionPoint;
-                cameraDirection.normalize();
-                
-                RowVector3d finalPixel;
-                finalPixel = ambient * this->bestMaterial.get_Ka();
-                
-                for (int j = 0; j < light.size(); j++)
-                {
-                    RowVector3d lightDirection(light[j].get_xLoc(),light[j].get_yLoc(),light[j].get_zLoc());
-                    RowVector3d LightColor(light[j].get_rVal(),light[j].get_gVal(),light[j].get_bVal());
-
-                    lightDirection = lightDirection-this->intersectionPoint;
-                    lightDirection.normalize();
-                    
-                    bool flag = false;
-                    for (int iterator = 0; iterator < object.size(); iterator++)
-                    {
-                        rayObject tempRay;
-                        tempRay.set_values(this->intersectionPoint,lightDirection,DBL_MAX);
-                        for(int k = 0; k < object[iterator].faces.size(); k++)
-                        {
-                            RowVector3d A(object[iterator].vertex[object[iterator].faces[k][0]][0],object[iterator].vertex[object[iterator].faces[k][0]][1],object[iterator].vertex[object[iterator].faces[k][0]][2]);
-                            RowVector3d B(object[iterator].vertex[object[iterator].faces[k][1]][0],object[iterator].vertex[object[iterator].faces[k][1]][1],object[iterator].vertex[object[iterator].faces[k][1]][2]);
-                            RowVector3d C(object[iterator].vertex[object[iterator].faces[k][2]][0],object[iterator].vertex[object[iterator].faces[k][2]][1],object[iterator].vertex[object[iterator].faces[k][2]][2]);
-                            
-                            double temp1, temp2;
-                            if(tempRay.intersectionDetector(A,B,C,lightDirection,this->intersectionPoint, &temp1, &temp2))
-                                flag = true;
-                        }
-                    }
-                    for (int iterator = 0; iterator < sphere.size(); iterator++)
-                    {
-                        rayObject tempRay;
-                        tempRay.set_values(this->intersectionPoint,lightDirection,DBL_MAX);
-                        if(tempRay.sphere_ray(sphere[iterator]))
-                        {   
-                            flag = true;
-                        }
-                    }
-                    if(lightDirection.dot(surfaceNormal) > 0.0 && !flag)
-                    {
-                        finalPixel += LightColor * this->bestMaterial.get_Kd() * (lightDirection.dot(surfaceNormal));
-                        RowVector3d R = (2*(lightDirection.dot(surfaceNormal))*surfaceNormal)-lightDirection;
-                        R.normalize();
-                        if(cameraDirection.dot(R) > 0)
-                            finalPixel += LightColor * this->bestMaterial.get_Ks() * (pow(cameraDirection.dot(R),bestMaterial.get_Ns()));
-                    }
-                }
-                for(int pixelIndex = 0; pixelIndex < 3; pixelIndex++)
-                    if(bestSphere == -1)
-                        pixels[pixelIndex] = finalPixel(pixelIndex) * refatt(pixelIndex);
-                    else
-                        pixels[pixelIndex] = finalPixel(pixelIndex) * refatt(pixelIndex) * this->bestMaterial.get_Ko()(pixelIndex,pixelIndex);
-                if (level > 0)
-                {
-                    double flec[3] = {0.0,0.0,0.0};
-                    RowVector3d Uinv;
-                    Uinv = -1 * this->D;
-                    RowVector3d refR;
-                    refR = (2 * surfaceNormal.dot(Uinv) * surfaceNormal) - Uinv;
-                    refR.normalize();
-                    rayObject tempRay;
-                    tempRay.set_values(this->intersectionPoint,refR,DBL_MAX);
-                    Vector3d newRefatt = this->bestMaterial.get_Kr() * refatt;
-                    tempRay.ray_trace(flec, newRefatt, (level - 1), object, material, normals, sphere, sphereMaterial, light, ambient, sharedVertex);
-                    for(int i = 0; i < 3; i++)
-                    {
-                        if(bestSphere == -1)
-                            pixels[i] += refatt(i)*flec[i];
-                        else
-                            pixels[i] += refatt(i)*flec[i]*this->bestMaterial.get_Ko()(i,i);
-                    }
-                }
-                double sumKo = this->bestMaterial.get_Ko()(0,0) + this->bestMaterial.get_Ko()(1,1) + this->bestMaterial.get_Ko()(2,2);
-                if (level > 0 && sumKo < 3.0 && bestSphere != -1)
-                {
-                    double throughPixels[3] = {0.0,0.0,0.0};
-                    Vector3d newRefatt = this->bestMaterial.get_Kr() * refatt;
-                    RowVector3d exitPoint,T2;
-                    if(sphere[bestSphere].refraction_exit(-1 * this->D, this->intersectionPoint, bestMaterial.get_eta(), &exitPoint, &T2))
-                    {   
-                        rayObject tempRay;
-                        tempRay.set_values(exitPoint, T2, DBL_MAX);
-                        tempRay.ray_trace(throughPixels, newRefatt, (level - 1), object, material, normals, sphere, sphereMaterial, light, ambient, sharedVertex);
-                        for(int i = 0; i < 3; i++)
-                            pixels[i] += refatt(i)*throughPixels[i]*(1.0 - this->bestMaterial.get_Ko()(i,i));
-                    }
-                }
-                return true;
-            }
-            return false;
-        }
-};
 
 void progress_bar(int count, int pixelCount, int row, int col, time_t startTime)
 {
@@ -612,7 +265,7 @@ int main(int argc, char** argv)
         rotation_Matrix = model[iterator].rotation_Matrix_Generator();
         Matrix4d transformation_Matrix = translationMatrix * scalingMatrix * rotation_Matrix;
         
-        ifstream objectfile (model[iterator].objectFileName);
+        ifstream objectfile (model[iterator].get_objectFileName());
         {
             while(!objectfile.eof())
             {
@@ -636,20 +289,16 @@ int main(int argc, char** argv)
                     
                     final_Matrix = (transformation_Matrix * object_Matrix).transpose();
                     
-                    vector<double> verticesTemp(3);
-                    verticesTemp[0] = final_Matrix(0);
-                    verticesTemp[1] = final_Matrix(1);
-                    verticesTemp[2] = final_Matrix(2);
-                    object[iterator].vertex.push_back(verticesTemp);
+                    object[iterator].vertex_push_back(final_Matrix(0),final_Matrix(1),final_Matrix(2));
                 }
                 else if (typeOfParameter == "vt")
                 {
                     string temporary_coordinates[2];
-                    vector<double> verticesTemp(2);
+                    double temp1, temp2;
                     objectLine >> temporary_coordinates[0] >> temporary_coordinates[1];
-                    verticesTemp[0] = stod(temporary_coordinates[0]);
-                    verticesTemp[1] = stod(temporary_coordinates[1]);
-                    object[iterator].textureVertex.push_back(verticesTemp);
+                    temp1 = stod(temporary_coordinates[0]);
+                    temp2 = stod(temporary_coordinates[1]);
+                    object[iterator].textureVertex_push_back(temp1,temp2);
                 }
                 else if (typeOfParameter == "usemtl")
                 {
@@ -692,37 +341,37 @@ int main(int argc, char** argv)
                         textureFacesTemp[i] = stoi(tempTexture)-1;
                     }
                     
-                    object[iterator].faces.push_back(facesTemp);
-                    object[iterator].textureFaces.push_back(textureFacesTemp);
+                    object[iterator].faces_push_back(facesTemp[0],facesTemp[1],facesTemp[2]);
+                    object[iterator].textureFaces_push_back(textureFacesTemp[0],textureFacesTemp[1],textureFacesTemp[2]);
                     
                     if(materialIndex != -1)
-                        object[iterator].faceMaterial.push_back(materialIndex);
+                        object[iterator].faceMaterial_push_back(materialIndex);
                     else
-                        object[iterator].faceMaterial.push_back(0);
+                        object[iterator].faceMaterial_push_back(0);
                 }
             }
         }
-        object[iterator].sharpFlag = model[iterator].sharpFlag;
+        object[iterator].set_sharpFlag(model[iterator].get_sharpFlag());
 
 
         sharedVertexObject sharedVertexTemp;
-        sharedVertexTemp.set_row_size(object[iterator].vertex.size());
-        for(int i = 0; i < object[iterator].faces.size(); i++)
+        sharedVertexTemp.set_row_size(object[iterator].get_vertex_size());
+        for(int i = 0; i < object[iterator].get_faces_size(); i++)
         {
             for( int j = 0; j < 3; j++)
             {
-                sharedVertexTemp.push_value_in(object[iterator].faces[i][j],i);
+                sharedVertexTemp.push_value_in(object[iterator].get_face(i,j),i);
             }
         }
         sharedVertex.push_back(sharedVertexTemp);
 
         normalObject normalsTemp;
-        normalsTemp.set_size_of_normals(object[iterator].faces.size());
+        normalsTemp.set_size_of_normals(object[iterator].get_faces_size());
         
         normalsTemp.generate_normals(object[iterator]);
         normals.push_back(normalsTemp);
 
-        ifstream materialfile (object[iterator].material_file_name);
+        ifstream materialfile (object[iterator].get_material_file_name());
         {
             vector <materialObject > materialTemp(1);
             if (materialIndex != -1)
