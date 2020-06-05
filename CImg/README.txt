@@ -14,7 +14,7 @@
 
                              ( http://cimg.eu )
 
-                                   2.4.2_pre111518
+                                   2.9.1_pre060420
 
 --------------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@
 # Authors and contributors :
 #----------------------------
 
-  - David Tschumperle (project leader) ( http://tschumperle.users.greyc.fr/ )
+  - David Tschumperlé (project leader) ( http://tschumperle.users.greyc.fr/ )
 
   - Maksim Aizenshtein
   - Alberto Albiol

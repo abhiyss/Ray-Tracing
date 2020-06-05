@@ -55,7 +55,7 @@ void materialObject::set_value_Ns(double value1)
 }
 void materialObject::set_textureImage(string value1)
 {
-    materialObject::textureImage.load_png(((value1).c_str()));
+    materialObject::textureImage.load_png(value1.c_str());
 }
 
 void materialObject::set_textureMapping(bool value1)
