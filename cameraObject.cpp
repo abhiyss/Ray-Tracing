@@ -1,5 +1,3 @@
-#pragma once
-
 #include <vector>
 #include "Eigen/Dense" 
 #include "cameraObject.hpp"
