@@ -27,8 +27,13 @@
 #include "displayObject.hpp"
 #include "cameraObject.hpp"
 #include "normalObject.hpp"
+<<<<<<< HEAD
+#include "sharedVertexObject.hpp"
+#include "sphereObject.hpp"
+=======
 #include "sphereObject.hpp"
 #include "sharedVertexObject.hpp"
+>>>>>>> master
 
 using namespace std;
 using namespace Eigen;
@@ -702,7 +707,8 @@ int main(int argc, char** argv)
             }
         }
         object[iterator].sharpFlag = model[iterator].sharpFlag;
-        
+
+
         sharedVertexObject sharedVertexTemp;
         sharedVertexTemp.set_row_size(object[iterator].vertex.size());
         for(int i = 0; i < object[iterator].faces.size(); i++)
