@@ -1,5 +1,3 @@
-#pragma once
-
 #include "Eigen/Dense"
 #include "normalObject.hpp"
 #include "displayObject.hpp"
@@ -16,9 +14,9 @@ void normalObject::generate_normals(displayObject object)
 {
     for(int i = 0; i < normalObject::number_of_normals; i++)
     {
-        RowVector3d A(object.vertex[object.faces[i][0]][0],object.vertex[object.faces[i][0]][1],object.vertex[object.faces[i][0]][2]);
-        RowVector3d B(object.vertex[object.faces[i][1]][0],object.vertex[object.faces[i][1]][1],object.vertex[object.faces[i][1]][2]);
-        RowVector3d C(object.vertex[object.faces[i][2]][0],object.vertex[object.faces[i][2]][1],object.vertex[object.faces[i][2]][2]);
+        RowVector3d A(object.get_vertex(object.get_faces(i,0),0),object.get_vertex(object.get_faces(i,0),1),object.get_vertex(object.get_faces(i,0),2));
+        RowVector3d B(object.get_vertex(object.get_faces(i,1),0),object.get_vertex(object.get_faces(i,1),1),object.get_vertex(object.get_faces(i,1),2));
+        RowVector3d C(object.get_vertex(object.get_faces(i,2),0),object.get_vertex(object.get_faces(i,2),1),object.get_vertex(object.get_faces(i,2),2));
         surfaceNormal[i] = (A-B).cross(A-C); //Assuming the order in which the vertices for a face are given is cyclic with the surface normal pointing outwards
         surfaceNormal[i].normalize();
     }

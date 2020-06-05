@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Eigen/Dense"
 #define cimg_use_png
 #include "CImg/CImg.h"
