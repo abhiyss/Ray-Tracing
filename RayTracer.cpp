@@ -21,19 +21,15 @@
 #include <sys/ioctl.h>
 #include <thread>
 #include <mutex>
+#define cimg_use_png
 #include "CImg/CImg.h"
 #include "materialObject.hpp"
 #include "lightObject.hpp"
 #include "displayObject.hpp"
 #include "cameraObject.hpp"
 #include "normalObject.hpp"
-<<<<<<< HEAD
 #include "sharedVertexObject.hpp"
 #include "sphereObject.hpp"
-=======
-#include "sphereObject.hpp"
-#include "sharedVertexObject.hpp"
->>>>>>> master
 
 using namespace std;
 using namespace Eigen;
@@ -766,7 +762,8 @@ int main(int argc, char** argv)
                 {
                     string value1;
                     materialLine >> value1;
-                    materialTemp[materialValueIndex].set_textureImage(value1);
+                    //materialTemp[materialValueIndex].set_textureImage(value1);
+                    materialTemp[materialValueIndex].set_textureImage("/Users/abhishek/Documents/GitHub/Ray-Tracing/Vision.png");
                     materialTemp[materialValueIndex].set_textureMapping(true);
                 }
                 else if(typeOfMaterial == "Ka")
