@@ -27,6 +27,8 @@
 #include "displayObject.hpp"
 #include "cameraObject.hpp"
 #include "normalObject.hpp"
+#include "sharedVertexObject.hpp"
+#include "sphereObject.hpp"
 
 using namespace std;
 using namespace Eigen;
@@ -152,104 +154,6 @@ class modelObject
         }
 };
 
-class sphereObject
-{
-    public:
-        RowVector3d center; // X, Y, Locations of the center of the sphere
-        double radius; // Radius of the sphere
-        void set_values(RowVector3d value1, double value2)
-        {
-            center = value1;
-            radius = value2;
-        }
-        
-        bool refraction_entry(RowVector3d W, RowVector3d Normal, double eta1, double eta2, RowVector3d *T)
-        {
-            double etar = eta1/eta2, a = -1 * etar, wn = W.dot(Normal), radsq = (pow(etar,2)*(pow(wn,2)-1))+1;
-            if (radsq < 0.0)
-                return false;
-            else
-            {
-                *T = a * W + ((etar*wn)-sqrt(radsq)) * Normal;
-                return true;
-            }
-        }
-        
-        bool refraction_exit(RowVector3d W, RowVector3d point, double etaInside, RowVector3d *exitPoint, RowVector3d *T)
-        {
-            RowVector3d T1;
-            if(refraction_entry(W, (point-this->center).normalized(), 1.0, etaInside, &T1))
-            {
-                *exitPoint = point + 2 * T1.dot(this->center - point) * T1;
-                RowVector3d NormalIn(this->center);
-                NormalIn = NormalIn - *exitPoint;
-                refraction_entry((-1 * T1), NormalIn.normalized(), etaInside, 1.0, T);
-                return true;
-            }
-            else
-                return false;
-        }
-};
-
-class sharedVertexObject
-{
-    public:
-        vector < vector < int > > sharedVertices; // 2 dimensional vector where values in the ith row are the faces that use the ith vertex
-        void set_row_size(int value) // Using 2 dimensional vector instead of 2D array to save memory. Initializing the number of rows to access later
-        {
-            sharedVertices.resize(value);
-        }
-        void printer() // Function to print the values inside the 2 dimensional vector
-        {
-            for (int i = 0; i < sharedVertices.size(); i++)
-            {
-                for (int j = 0; j < sharedVertices[i].size(); j++)
-                {
-                    cout << sharedVertices[i][j] << " - ";
-                }
-                cout << endl;
-            }
-        }
-        RowVector3d normal_generator(double beta, double gamma, vector < int > faces, int faceNumber, normalObject normals) // Generates average normal in case of smoothing
-        {
-            double N[3][3]; // Setting the value of normals at each vertex to zero to add upon later on
-            for(int i = 0; i < 3; i++)
-                for(int j = 0; j < 3; j++)
-                    N[i][j] = 0;
-
-            RowVector3d actualNormal = normals.get_normal(faceNumber); // The actual normal for a given face obtained from the file
-            
-            for(int i = 0; i < 3; i++) // For every vertex
-            {
-                int count = 0;
-                for(int j = 0; j < sharedVertices[faces[i]].size(); j++) // Go through every face shared by that vertex
-                {
-                    RowVector3d normalInConsideration = normals.get_normal(sharedVertices[faces[i]][j]); // Find normal of the face in consideration that is shared by the vertex
-                    if(normalInConsideration == actualNormal) // If the normal is the same, add it to the sum and increase count
-                    {
-                        count++;
-                        for(int k = 0; k < 3; k++)
-                            N[i][k] += normalInConsideration(k);
-                    }
-                    else
-                    {
-                        double angle = (normalInConsideration.dot(actualNormal)/(normalInConsideration.norm()*actualNormal.norm()))*1.0; // Calculate the angle between the two normals
-                        if((angle > 0.923879 && angle < 1.0) || angle == 1) // If the angle is greater than 22.5 degress add that normal to the sum and increase the count
-                        {
-                            for(int k = 0; k < 3; k++)
-                                N[i][k] += normalInConsideration(k);
-                            count++;
-                        }
-                    }
-                }
-                for(int j = 0; j < 3; j++) // FInd the average of the normal for that vertex
-                    N[i][j] = N[i][j]/count;
-            }
-            RowVector3d Na(N[0][0],N[0][1],N[0][2]), Nb(N[1][0],N[1][1],N[1][2]), Nc(N[2][0],N[2][1],N[2][2]);
-            return ((1.0-beta-gamma)*Na+beta*Nb+gamma*Nc).normalized(); // Send back the average normal
-        }
-};
-
 class rayObject
 {
     public:
@@ -265,8 +169,8 @@ class rayObject
         }
         bool sphere_ray(sphereObject sphere)
         {
-            RowVector3d T = sphere.center - L;
-            double disc = pow(sphere.radius,2) - (T.dot(T)-pow(T.dot(D),2));
+            RowVector3d T = sphere.get_center() - L;
+            double disc = pow(sphere.get_radius(),2) - (T.dot(T)-pow(T.dot(D),2));
             if (disc > 0)
             {
                 double tVal = T.dot(D) - sqrt(disc);
@@ -390,7 +294,7 @@ class rayObject
                 {
                     this->bestMaterial = sphereMaterial[iterator];
                     bestSphere = iterator;
-                    surfaceNormal = (this->intersectionPoint - this->best_sphere.center);
+                    surfaceNormal = (this->intersectionPoint - this->best_sphere.get_center());
                     surfaceNormal.normalize();
                 }
             }
@@ -805,7 +709,7 @@ int main(int argc, char** argv)
         {
             for( int j = 0; j < 3; j++)
             {
-                sharedVertexTemp.sharedVertices[object[iterator].faces[i][j]].push_back(i);
+                sharedVertexTemp.push_value_in(object[iterator].faces[i][j],i);
             }
         }
         sharedVertex.push_back(sharedVertexTemp);
