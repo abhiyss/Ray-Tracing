@@ -27,6 +27,7 @@
 #include "displayObject.hpp"
 #include "cameraObject.hpp"
 #include "normalObject.hpp"
+#include "sphereObject.hpp"
 
 using namespace std;
 using namespace Eigen;
@@ -152,45 +153,6 @@ class modelObject
         }
 };
 
-class sphereObject
-{
-    public:
-        RowVector3d center; // X, Y, Locations of the center of the sphere
-        double radius; // Radius of the sphere
-        void set_values(RowVector3d value1, double value2)
-        {
-            center = value1;
-            radius = value2;
-        }
-        
-        bool refraction_entry(RowVector3d W, RowVector3d Normal, double eta1, double eta2, RowVector3d *T)
-        {
-            double etar = eta1/eta2, a = -1 * etar, wn = W.dot(Normal), radsq = (pow(etar,2)*(pow(wn,2)-1))+1;
-            if (radsq < 0.0)
-                return false;
-            else
-            {
-                *T = a * W + ((etar*wn)-sqrt(radsq)) * Normal;
-                return true;
-            }
-        }
-        
-        bool refraction_exit(RowVector3d W, RowVector3d point, double etaInside, RowVector3d *exitPoint, RowVector3d *T)
-        {
-            RowVector3d T1;
-            if(refraction_entry(W, (point-this->center).normalized(), 1.0, etaInside, &T1))
-            {
-                *exitPoint = point + 2 * T1.dot(this->center - point) * T1;
-                RowVector3d NormalIn(this->center);
-                NormalIn = NormalIn - *exitPoint;
-                refraction_entry((-1 * T1), NormalIn.normalized(), etaInside, 1.0, T);
-                return true;
-            }
-            else
-                return false;
-        }
-};
-
 class sharedVertexObject
 {
     public:
@@ -265,8 +227,8 @@ class rayObject
         }
         bool sphere_ray(sphereObject sphere)
         {
-            RowVector3d T = sphere.center - L;
-            double disc = pow(sphere.radius,2) - (T.dot(T)-pow(T.dot(D),2));
+            RowVector3d T = sphere.get_center() - L;
+            double disc = pow(sphere.get_radius(),2) - (T.dot(T)-pow(T.dot(D),2));
             if (disc > 0)
             {
                 double tVal = T.dot(D) - sqrt(disc);
@@ -390,7 +352,7 @@ class rayObject
                 {
                     this->bestMaterial = sphereMaterial[iterator];
                     bestSphere = iterator;
-                    surfaceNormal = (this->intersectionPoint - this->best_sphere.center);
+                    surfaceNormal = (this->intersectionPoint - this->best_sphere.get_center());
                     surfaceNormal.normalize();
                 }
             }
