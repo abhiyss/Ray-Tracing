@@ -1,6 +1,8 @@
 #include "Eigen/Dense"
 #include "CImg/CImg.h"
 #include "materialObject.hpp"
+#include <stdlib.h>
+#include <iostream>
 using namespace std;
 
 using namespace Eigen;

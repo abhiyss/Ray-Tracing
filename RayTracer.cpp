@@ -411,8 +411,8 @@ int main(int argc, char** argv)
                 {
                     string value1;
                     materialLine >> value1;
-                    //materialTemp[materialValueIndex].set_textureImage(value1);
-                    materialTemp[materialValueIndex].set_textureImage("/Users/abhishek/Documents/GitHub/Ray-Tracing/Vision.png");
+                    materialTemp[materialValueIndex].set_textureImage(value1);
+                    //materialTemp[materialValueIndex].set_textureImage("/Users/abhishek/Documents/GitHub/Ray-Tracing/Vision.png");
                     materialTemp[materialValueIndex].set_textureMapping(true);
                 }
                 else if(typeOfMaterial == "Ka")
