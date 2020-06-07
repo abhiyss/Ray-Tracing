@@ -1,5 +1,5 @@
 CImg/* linguist-vendored
 Eigen/* linguist-vendored
-CImg/examples/img/tetris.h -linguist-vendored
-CImg/plugins/tinymatwriter.h -linguist-vendored
-Eigen/src/Core/arch/Default/Settings.h -linguist-vendored
+CImg/examples/img/tetris.h linguist-vendored
+CImg/plugins/tinymatwriter.h linguist-vendored
+Eigen/src/Core/arch/Default/Settings.h linguist-vendored
