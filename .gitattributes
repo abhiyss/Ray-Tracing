@@ -3,3 +3,6 @@ Eigen/* linguist-vendored
 tetris.h linguist-vendored
 tinymatwriter.h linguist-vendored
 Settings.h linguist-vendored
+*.cpp linguist-detectable
+*.hpp linguist-detectable
+makefile -linguist-detectable
