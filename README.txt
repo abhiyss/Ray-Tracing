@@ -1,4 +1,3 @@
-# Ray-Tracing
 /*------------------------------------------------------------------------------*/
 /*              Developed By: Sri Sagar Abhishek Yeluri                         */
 /*                            Version : 5.2.2                                   */
